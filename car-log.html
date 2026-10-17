@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d4ed8">
+<title>Car Log – Συντήρηση Αυτοκινήτων</title>
+<style>
+:root{
+  --bg:#f3f5f9;--card:#fff;--text:#18202e;--muted:#667085;--line:#e4e7ec;
+  --primary:#1d4ed8;--primary-text:#fff;
+  --red:#d92d20;--red-bg:#fef3f2;--orange:#b54708;--orange-bg:#fffaeb;--green:#067647;--green-bg:#ecfdf3;
+  --radius:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0e131b;--card:#171d29;--text:#e8ecf3;--muted:#98a2b3;--line:#283042;
+    --primary:#4f7cff;--red:#f97066;--red-bg:#2b1715;--orange:#fdb022;--orange-bg:#2a2112;--green:#47cd89;--green-bg:#102419}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:5;background:var(--primary);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:10px}
+header h1{font-size:18px;margin:0;flex:1}
+header button{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:10px;padding:8px 12px;font-size:15px}
+main{max-width:760px;margin:0 auto;padding:16px}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:22px 4px 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.row{display:flex;align-items:center;gap:10px}
+.grow{flex:1;min-width:0}
+.title{font-weight:600}
+.sub{color:var(--muted);font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px;text-align:center}
+.stat b{display:block;font-size:24px}
+.stat span{font-size:12px;color:var(--muted)}
+.badge{display:inline-block;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:600;white-space:nowrap}
+.l0{background:var(--red-bg);color:var(--red)}
+.l1{background:var(--orange-bg);color:var(--orange)}
+.l2{background:var(--green-bg);color:var(--green)}
+.bar{width:5px;align-self:stretch;border-radius:3px;flex:none}
+.bar.l0{background:var(--red)}.bar.l1{background:var(--orange)}.bar.l2{background:var(--green)}
+.clickable{cursor:pointer}
+button,.btn{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:10px 14px}
+.btn.primary{background:var(--primary);color:var(--primary-text);border-color:var(--primary)}
+.btn.danger{color:var(--red)}
+.btn.small{padding:6px 10px;font-size:14px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.empty{text-align:center;color:var(--muted);padding:30px 10px}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{flex:1;border:0;background:none;color:var(--muted);padding:10px 4px;font-size:12px}
+nav button .ic{display:block;font-size:22px;line-height:1.1}
+nav button.on{color:var(--primary);font-weight:600}
+.fab{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;border:0;background:var(--primary);color:#fff;font-size:30px;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:6}
+dialog{border:0;border-radius:var(--radius);padding:0;width:min(520px,calc(100% - 20px));max-height:92vh;background:var(--card);color:var(--text)}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog form{padding:16px;display:grid;gap:12px}
+dialog h3{margin:0}
+label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:999px;padding:4px 10px;font-size:13px}
+.hist-meta{display:flex;flex-wrap:wrap;gap:4px 14px;color:var(--muted);font-size:14px;margin-top:4px}
+.note{background:var(--bg);border-radius:10px;padding:10px;font-size:14px;color:var(--muted);margin-bottom:10px}
+body.ro .fab,body.ro .actions,body.ro [data-act="car-form"]{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="hTitle">Car Log</h1>
+  <button id="hBack" hidden data-act="go" data-view="cars">← Πίσω</button>
+</header>
+<main id="app"></main>
+<div id="modal"></div>
+
+<script src="car-log-data.js"></script>
+<script>
+(function(){
+'use strict';
+const KEY='carlog.v1';
+const TYPES=['Σέρβις','ΚΤΕΟ','Αλλαγή λαδιών','Αλλαγή ελαστικών','Εναλλαγή ελαστικών','Φρένα','Μπαταρία','Ιμάντας χρονισμού','Ασφάλεια αυτοκινήτου','Τέλη κυκλοφορίας','Φίλτρα','Υγρά / Αντιψυκτικό'];
+const SOON_DAYS=30, SOON_KM=1000;
+
+const el=(s)=>document.querySelector(s);
+const esc=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const norm=(s)=>String(s).trim().toLowerCase();
+const num=(v)=>v===''||v==null||isNaN(+v)?null:+v;
+const fmtN=(n)=>Number(n).toLocaleString('el-GR');
+const toDate=(s)=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const iso=(d)=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const today=()=>iso(new Date());
+const fmtD=(s)=>s?toDate(s).toLocaleDateString('el-GR'):'';
+const daysTo=(s)=>Math.round((toDate(s)-toDate(today()))/864e5);
+const addMonths=(s,n)=>{const d=toDate(s||today());d.setMonth(d.getMonth()+n);return iso(d)};
+
+/* ---------- Data ---------- */
+function readLocal(){
+  try{const t=localStorage.getItem(KEY);return t?JSON.parse(t):null}catch{return null}
+}
+const valid=(d)=>d&&Array.isArray(d.cars)&&Array.isArray(d.records);
+// Όταν το αρχείο σερβίρεται από δικτύου (π.χ. GitHub Pages), εμφανίζει μόνο τα δεδομένα του car-log-data.js, χωρίς επεξεργασία.
+const RO=location.protocol!=='file:';
+document.body.classList.toggle('ro',RO);
+function load(){
+  if(RO)return valid(window.CARLOG_DATA)?window.CARLOG_DATA:{cars:[],records:[],updatedAt:0};
+  // Κερδίζει η πιο πρόσφατη πηγή: τοπική αποθήκη του browser ή συνοδευτικό car-log-data.js.
+  const best=[readLocal(),window.CARLOG_DATA].filter(valid).sort((x,y)=>(y.updatedAt||0)-(x.updatedAt||0))[0];
+  return best||{cars:[],records:[],updatedAt:0};
+}
+let state=load();
+function save(){
+  if(RO)return;
+  state.updatedAt=Date.now();
+  try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}
+  queueWrite();
+}
+
+/* ---------- Αρχείο δεδομένων (car-log-data.js) ---------- */
+const FS=typeof window.showSaveFilePicker==='function';
+let fileHandle=null,fileStatus='none',writeChain=Promise.resolve();
+const dataFileText=()=>'// Car Log data\nwindow.CARLOG_DATA='+JSON.stringify(state).replace(/</g,'\\u003c')+';\n';
+function idb(){return new Promise((res,rej)=>{const q=indexedDB.open('carlog',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
+async function idbGet(k){const db=await idb();return new Promise(r=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})}
+async function idbSet(k,v){const db=await idb();return new Promise(r=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>r()})}
+function queueWrite(){if(fileHandle)writeChain=writeChain.then(writeFile)}
+async function writeFile(){
+  const prev=fileStatus;
+  try{
+    if(await fileHandle.queryPermission({mode:'readwrite'})!=='granted'){fileStatus='locked';return}
+    const w=await fileHandle.createWritable();
+    await w.write(dataFileText());
+    await w.close();
+    fileStatus='ok';
+  }catch{fileStatus='error'}finally{if(prev!==fileStatus)render()}
+}
+async function connectFile(){
+  try{
+    const h=await window.showSaveFilePicker({suggestedName:'car-log-data.js',types:[{description:'Car Log data',accept:{'text/javascript':['.js']}}]});
+    // Αν το αρχείο έχει νεότερα δεδομένα, προσφέρεται η φόρτωσή τους αντί για αντικατάσταση.
+    try{
+      const txt=await (await h.getFile()).text();
+      const i=txt.indexOf('{'),j=txt.lastIndexOf('}');
+      const d=i>=0?JSON.parse(txt.slice(i,j+1)):null;
+      if(valid(d)&&(d.updatedAt||0)>state.updatedAt&&confirm('Το αρχείο έχει πιο πρόσφατα δεδομένα. Να φορτωθούν;')){
+        state={cars:d.cars,records:d.records,updatedAt:d.updatedAt};
+        try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}
+      }
+    }catch{}
+    fileHandle=h;fileStatus='ok';
+    try{await idbSet('handle',h)}catch{}
+    queueWrite();render();
+  }catch{}
+}
+async function unlockFile(){
+  try{if(await fileHandle.requestPermission({mode:'readwrite'})==='granted'){queueWrite()}}catch{}
+  render();
+}
+async function initFile(){
+  if(!FS||RO)return;
+  try{
+    fileHandle=await idbGet('handle')||null;
+    if(fileHandle)fileStatus=(await fileHandle.queryPermission({mode:'readwrite'}))==='granted'?'ok':'locked';
+  }catch{fileHandle=null}
+  render();
+}
+const carById=(id)=>state.cars.find(c=>c.id===id);
+
+/* ---------- Reminders ---------- */
+function status(r,car){
+  const days=r.nextDate?daysTo(r.nextDate):null;
+  const kmLeft=r.nextKm!=null&&car.km!=null?r.nextKm-car.km:null;
+  let level=2;
+  if((days!=null&&days<0)||(kmLeft!=null&&kmLeft<0))level=0;
+  else if((days!=null&&days<=SOON_DAYS)||(kmLeft!=null&&kmLeft<=SOON_KM))level=1;
+  const parts=[];
+  if(days!=null)parts.push(days<0?`Έληξε πριν ${-days} ημ.`:days===0?'Σήμερα':`Σε ${days} ημ.`);
+  if(kmLeft!=null)parts.push(kmLeft<0?`Ξεπεράστηκε κατά ${fmtN(-kmLeft)} km`:`Σε ${fmtN(kmLeft)} km`);
+  return {level,days,kmLeft,label:parts.join(' · ')};
+}
+function reminders(carId){
+  const latest=new Map();
+  for(const r of state.records){
+    if(carId&&r.carId!==carId)continue;
+    const k=r.carId+'|'+norm(r.type);
+    const c=latest.get(k);
+    if(!c||r.date>c.date||(r.date===c.date&&r.id>c.id))latest.set(k,r);
+  }
+  return [...latest.values()].filter(r=>r.nextDate||r.nextKm!=null).map(r=>{
+    const car=carById(r.carId);return {r,car,s:status(r,car)};
+  }).sort((a,b)=>a.s.level-b.s.level||(a.s.days??1e9)-(b.s.days??1e9)||(a.s.kmLeft??1e9)-(b.s.kmLeft??1e9));
+}
+
+/* ---------- View ---------- */
+let view={name:'home',carId:null};
+function go(name,carId=null){view={name,carId};render();window.scrollTo(0,0)}
+
+function reminderCard(x,showCar){
+  const {r,car,s}=x;
+  return `<div class="card row clickable" data-act="go" data-view="car" data-id="${car.id}">
+    <div class="bar l${s.level}"></div>
+    <div class="grow">
+      <div class="title">${esc(r.type)}${showCar?` <span class="sub">· ${esc(car.name)}</span>`:''}</div>
+      <div class="sub">${r.nextDate?'Έως '+fmtD(r.nextDate):''}${r.nextDate&&r.nextKm!=null?' ή ':''}${r.nextKm!=null?fmtN(r.nextKm)+' km':''}</div>
+    </div>
+    <span class="badge l${s.level}">${esc(s.label)}</span>
+  </div>`;
+}
+
+function renderHome(){
+  if(!state.cars.length)return `<div class="empty"><p>Δεν έχεις προσθέσει αυτοκίνητο ακόμα.</p><button class="btn primary" data-act="car-form">+ Προσθήκη αυτοκινήτου</button></div>`;
+  const list=reminders();
+  const cnt=[0,0,0];list.forEach(x=>cnt[x.s.level]++);
+  return `<div class="stats">
+      <div class="stat"><b style="color:var(--red)">${cnt[0]}</b><span>Εκπρόθεσμα</span></div>
+      <div class="stat"><b style="color:var(--orange)">${cnt[1]}</b><span>Σύντομα</span></div>
+      <div class="stat"><b style="color:var(--green)">${cnt[2]}</b><span>Εντάξει</span></div>
+    </div>
+    <h2>Επόμενες εργασίες</h2>
+    ${list.length?list.map(x=>reminderCard(x,true)).join(''):'<div class="empty">Δεν υπάρχουν προγραμματισμένες εργασίες.<br>Πρόσθεσε μια εγγραφή με «Επόμενο» ημερομηνία ή km.</div>'}`;
+}
+
+function renderCars(){
+  return `${state.cars.map(c=>{
+    const rem=reminders(c.id);const worst=rem[0]?.s.level;
+    return `<div class="card row clickable" data-act="go" data-view="car" data-id="${c.id}">
+      <div class="grow"><div class="title">${esc(c.name)}</div>
+      <div class="sub">${esc(c.plate||'')}${c.plate&&c.km!=null?' · ':''}${c.km!=null?fmtN(c.km)+' km':''}</div></div>
+      ${worst!=null?`<span class="badge l${worst}">${['Εκπρόθεσμο','Σύντομα','Εντάξει'][worst]}</span>`:''}
+    </div>`}).join('')||'<div class="empty">Κανένα αυτοκίνητο ακόμα.</div>'}
+    <div class="actions"><button class="btn primary" data-act="car-form">+ Νέο αυτοκίνητο</button></div>`;
+}
+
+function renderCar(){
+  const car=carById(view.carId);
+  if(!car){view={name:'cars',carId:null};return renderCars()}
+  const rem=reminders(car.id);
+  const hist=state.records.filter(r=>r.carId===car.id).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
+  const total=hist.reduce((t,r)=>t+(r.cost||0),0);
+  return `<div class="card">
+      <div class="row"><div class="grow"><div class="title">${esc(car.name)}</div>
+        <div class="sub">${esc(car.plate||'')}${car.plate&&car.km!=null?' · ':''}${car.km!=null?fmtN(car.km)+' km':''}</div></div>
+        <button class="btn small" data-act="car-form" data-id="${car.id}">Επεξεργασία</button></div>
+      ${total?`<div class="sub" style="margin-top:6px">Συνολικό κόστος: ${fmtN(total)} €</div>`:''}
+    </div>
+    <h2>Επόμενες εργασίες</h2>
+    ${rem.length?rem.map(x=>reminderCard(x,false)).join(''):'<div class="empty">Καμία προγραμματισμένη εργασία.</div>'}
+    <h2>Ιστορικό</h2>
+    ${hist.map(r=>`<div class="card">
+      <div class="row"><div class="grow title">${esc(r.type)}</div><span class="sub">${fmtD(r.date)}</span></div>
+      <div class="hist-meta">
+        ${r.km!=null?`<span>${fmtN(r.km)} km</span>`:''}
+        ${r.cost!=null?`<span>${fmtN(r.cost)} €</span>`:''}
+        ${r.nextDate?`<span>Επόμενο: ${fmtD(r.nextDate)}</span>`:''}
+        ${r.nextKm!=null?`<span>Επόμενο: ${fmtN(r.nextKm)} km</span>`:''}
+      </div>
+      ${r.notes?`<div class="sub" style="margin-top:6px">${esc(r.notes)}</div>`:''}
+      <div class="actions">
+        <button class="btn small" data-act="rec-form" data-id="${r.id}">Επεξεργασία</button>
+        <button class="btn small danger" data-act="rec-del" data-id="${r.id}">Διαγραφή</button>
+      </div></div>`).join('')||'<div class="empty">Δεν υπάρχουν εγγραφές.</div>'}`;
+}
+
+function banner(){
+  if(RO)return '';
+  const note=(txt,act,btn)=>`<div class="note">${txt}<div class="actions"><button class="btn small primary" data-act="${act}">${btn}</button></div></div>`;
+  if(FS){
+    if(fileStatus==='ok')return '';
+    if(fileStatus==='locked')return note('Δώσε άδεια για να αποθηκεύονται οι αλλαγές στο αρχείο δεδομένων.','file-unlock','Ενεργοποίηση');
+    if(fileStatus==='error')return note('Σφάλμα εγγραφής στο αρχείο δεδομένων.','file-connect','Επανασύνδεση');
+    return note('Σύνδεσε το car-log-data.js (στον φάκελο του HTML) ώστε να αποθηκεύονται εκεί οι αλλαγές.','file-connect','Σύνδεση αρχείου');
+  }
+  // Σε browser χωρίς εγγραφή σε αρχείο, προτείνεται λήψη μόνο όταν υπάρχουν αλλαγές έξω από το αρχείο.
+  if(state.updatedAt>(window.CARLOG_DATA?.updatedAt||0))return note('Οι αλλαγές σου δεν είναι στο car-log-data.js. Κατέβασε το και αντικατέστησε το παλιό στον φάκελο.','export-data','Λήψη αρχείου');
+  return '';
+}
+
+function render(){
+  const v=view.name;
+  const titles={home:'Επισκόπηση',cars:'Αυτοκίνητα',car:carById(view.carId)?.name||'Αυτοκίνητο'};
+  el('#hTitle').textContent=titles[v];
+  el('#hBack').hidden=v!=='car';
+  const body=banner()+{home:renderHome,cars:renderCars,car:renderCar}[v]();
+  const fab=state.cars.length&&(v==='home'||v==='car')?`<button class="fab" data-act="rec-form" aria-label="Νέα εγγραφή">+</button>`:'';
+  const tab=(n,ic,t)=>`<button class="${(v===n||(v==='car'&&n==='cars'))?'on':''}" data-act="go" data-view="${n}"><span class="ic">${ic}</span>${t}</button>`;
+  el('#app').innerHTML=body+fab+`<nav>${tab('home','🏠','Επισκόπηση')}${tab('cars','🚗','Αυτοκίνητα')}</nav>`;
+}
+
+/* ---------- Dialogs ---------- */
+function openDialog(html,onSubmit){
+  el('#modal').innerHTML=`<dialog>${html}</dialog>`;
+  const dlg=el('#modal dialog');
+  dlg.querySelector('[data-close]')?.addEventListener('click',()=>dlg.close());
+  dlg.querySelector('form').addEventListener('submit',e=>{
+    e.preventDefault();
+    onSubmit(new FormData(e.target),dlg);
+  });
+  dlg.addEventListener('close',()=>{el('#modal').innerHTML=''});
+  dlg.showModal();
+}
+
+function carForm(id){
+  const c=id?carById(id):{name:'',plate:'',km:null};
+  openDialog(`<form>
+    <h3>${id?'Επεξεργασία':'Νέο'} αυτοκίνητο</h3>
+    <label>Όνομα / μοντέλο<input name="name" required value="${esc(c.name)}" placeholder="π.χ. Toyota Yaris"></label>
+    <div class="two">
+      <label>Πινακίδα<input name="plate" value="${esc(c.plate)}"></label>
+      <label>Τρέχοντα km<input name="km" type="number" min="0" inputmode="numeric" value="${c.km??''}"></label>
+    </div>
+    <div class="actions"><button class="btn primary">Αποθήκευση</button><button type="button" class="btn" data-close>Άκυρο</button>
+    ${id?'<button type="button" class="btn danger" id="delCar">Διαγραφή</button>':''}</div>
+  </form>`,(fd,dlg)=>{
+    const data={name:fd.get('name').trim(),plate:fd.get('plate').trim(),km:num(fd.get('km'))};
+    if(id)Object.assign(c,data);else state.cars.push({id:uid(),...data});
+    save();dlg.close();render();
+  });
+  el('#delCar')?.addEventListener('click',()=>{
+    if(!confirm('Θα διαγραφούν το αυτοκίνητο και όλες οι εγγραφές του. Συνέχεια;'))return;
+    state.cars=state.cars.filter(x=>x.id!==id);
+    state.records=state.records.filter(r=>r.carId!==id);
+    save();el('#modal dialog').close();go('cars');
+  });
+}
+
+function recForm(id){
+  const r=id?state.records.find(x=>x.id===id):{carId:view.carId||state.cars[0].id,type:'',date:today(),km:null,cost:null,notes:'',nextDate:'',nextKm:null};
+  const car=carById(r.carId);
+  openDialog(`<form>
+    <h3>${id?'Επεξεργασία':'Νέα'} εγγραφή</h3>
+    <label>Αυτοκίνητο<select name="carId">${state.cars.map(c=>`<option value="${c.id}"${c.id===r.carId?' selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+    <label>Εργασία<input name="type" required list="types" value="${esc(r.type)}" placeholder="π.χ. Σέρβις, ΚΤΕΟ, Λάστιχα"></label>
+    <datalist id="types">${TYPES.map(t=>`<option value="${esc(t)}">`).join('')}</datalist>
+    <div class="chips" id="typeChips">${TYPES.map(t=>`<button type="button" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+    <div class="two">
+      <label>Ημερομηνία<input name="date" type="date" required value="${r.date}"></label>
+      <label>Km τώρα<input name="km" type="number" min="0" inputmode="numeric" value="${r.km??car.km??''}"></label>
+    </div>
+    <div class="two">
+      <label>Κόστος (€)<input name="cost" type="number" min="0" step="0.01" inputmode="decimal" value="${r.cost??''}"></label>
+      <span></span>
+    </div>
+    <label>Σημειώσεις<textarea name="notes" rows="2">${esc(r.notes)}</textarea></label>
+    <div class="note" style="margin:0">Πότε είναι το επόμενο; (προαιρετικό)</div>
+    <label>Επόμενη ημερομηνία<input name="nextDate" type="date" value="${r.nextDate||''}"></label>
+    <div class="chips" id="dateChips">
+      ${[[6,'+6 μήνες'],[12,'+1 έτος'],[24,'+2 έτη'],[48,'+4 έτη']].map(([m,t])=>`<button type="button" data-m="${m}">${t}</button>`).join('')}
+    </div>
+    <label>Επόμενα km<input name="nextKm" type="number" min="0" inputmode="numeric" value="${r.nextKm??''}"></label>
+    <div class="chips" id="kmChips">
+      ${[5000,10000,15000,20000].map(k=>`<button type="button" data-k="${k}">+${fmtN(k)}</button>`).join('')}
+    </div>
+    <div class="actions"><button class="btn primary">Αποθήκευση</button><button type="button" class="btn" data-close>Άκυρο</button></div>
+  </form>`,(fd,dlg)=>{
+    const data={
+      carId:fd.get('carId'),type:fd.get('type').trim(),date:fd.get('date'),km:num(fd.get('km')),
+      cost:num(fd.get('cost')),notes:fd.get('notes').trim(),nextDate:fd.get('nextDate')||'',nextKm:num(fd.get('nextKm'))
+    };
+    if(id)Object.assign(r,data);else state.records.push({id:uid(),...data});
+    const c=carById(data.carId);
+    if(data.km!=null&&(c.km==null||data.km>c.km))c.km=data.km;
+    save();dlg.close();render();
+  });
+  const f=el('#modal form');
+  el('#typeChips').addEventListener('click',e=>{
+    const t=e.target.dataset.t;if(t)f.type.value=t;
+  });
+  el('#dateChips').addEventListener('click',e=>{
+    const m=e.target.dataset.m;if(!m)return;
+    f.nextDate.value=addMonths(f.date.value,+m);
+  });
+  el('#kmChips').addEventListener('click',e=>{
+    const k=e.target.dataset.k;if(!k)return;
+    f.nextKm.value=(num(f.km.value)||0)+ +k;
+  });
+}
+
+function download(name,text,type){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type}));
+  a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* ---------- Events ---------- */
+let askedPermission=false;
+document.addEventListener('click',e=>{
+  // Ο browser απαιτεί χειρονακτική ενέργεια για την άδεια εγγραφής, οπότε ζητείται στο πρώτο κλικ.
+  if(!askedPermission&&fileHandle&&fileStatus==='locked'){askedPermission=true;unlockFile()}
+  const t=e.target.closest('[data-act]');if(!t)return;
+  const id=t.dataset.id;
+  switch(t.dataset.act){
+    case'go':go(t.dataset.view,id||null);break;
+    case'car-form':carForm(id);break;
+    case'rec-form':recForm(id);break;
+    case'rec-del':
+      if(confirm('Διαγραφή εγγραφής;')){state.records=state.records.filter(r=>r.id!==id);save();render()}break;
+    case'export-data':download('car-log-data.js',dataFileText(),'text/javascript');break;
+    case'file-connect':connectFile();break;
+    case'file-unlock':unlockFile();break;
+  }
+});
+
+render();
+initFile();
+})();
+</script>
+</body>
+</html>
